@@ -7,11 +7,11 @@ import os
 root = tk.Tk()
 root.withdraw()
 folderPath = filedialog.askdirectory()  # 获得选择好的文件夹
-fileSet = os.listdir(folderPath)
 fileName = str('/result.xlsx')
 file_path = folderPath + fileName
 if os.path.exists(file_path):
     os.remove(file_path)
+fileSet = os.listdir(folderPath)
 sheetMap = {}
 for file in fileSet:
 
