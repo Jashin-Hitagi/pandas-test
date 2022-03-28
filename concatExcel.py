@@ -3,7 +3,12 @@ import tkinter as tk
 from tkinter import filedialog
 import os
 
-'''打开选择文件夹对话框'''
+
+'''
+合并多个Excel Excel的格式相同 Header相同
+'''
+
+# 打开选择文件夹对话框
 root = tk.Tk()
 root.withdraw()
 folderPath = filedialog.askdirectory()  # 获得选择好的文件夹
