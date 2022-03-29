@@ -56,7 +56,10 @@ p = Phone(phone_dat_file)
 fileSet = os.listdir(folderPath)
 phoneMap = {}
 for file in fileSet:
-    data = pd.read_excel(folderPath + "\\" + file, sheet_name=None)
+    engine = None
+    if file.endswith('.xlsx'):
+        engine = 'openpyxl'
+    data = pd.read_excel(folderPath + "\\" + file, sheet_name=None, engine=engine)
     for key in data.keys():
         df = data[key]
         if len(phoneMap) < 1:
@@ -65,19 +68,19 @@ for file in fileSet:
                 person = phoneInfo(a["用户ID"], a["区号"], a["手机号"], get_address(p, countryMap, a["区号"], a["手机号"]))
                 phoneMap.update({a["用户ID"]: person})
 
-        if not df.keys().__contains__('区号'):
+        if not df.keys().__contains__('区号') or len(df['区号']) < 1:
             areaCodeList = []
             for personId in df["用户ID"]:
                 areaCodeList.append(phoneMap.get(personId).areaCode)
             df.insert(df.shape[1], '区号', areaCodeList)
 
-        if not df.keys().__contains__('手机号'):
+        if not df.keys().__contains__('手机号') or len(df['手机号']) < 1:
             areaCodeList = []
             for personId in df["用户ID"]:
                 areaCodeList.append(phoneMap.get(personId).phoneNum)
             df.insert(df.shape[1], '手机号', areaCodeList)
 
-        if not df.keys().__contains__('用户手机号归属地'):
+        if not df.keys().__contains__('用户手机号归属地') or len(df['用户手机号归属地']) < 1:
             areaCodeList = []
             for personId in df["用户ID"]:
                 areaCodeList.append(phoneMap.get(personId).address)
