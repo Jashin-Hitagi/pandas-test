@@ -26,6 +26,7 @@ class addressInfo(object):
         self.areaCode = areaCode
 
 
+# 归属地查询
 def get_address(ph, countryMap, areaCode, phoneNum):
     if '86' == str(areaCode) or '+86' == str(areaCode):
         area = ph.find(phoneNum)
@@ -40,10 +41,9 @@ def get_countryCode():
     dat_file = os.path.join(os.path.dirname(__file__), "country.csv")
     countryPhone = pd.read_csv(dat_file)
     for lineIndex in range(countryPhone.shape[0] - 1):
-       line = countryPhone.loc[lineIndex]
-       countryMap.update({line['phonecode']:addressInfo(line['phonecode'], line['name_zh'])})
+        line = countryPhone.loc[lineIndex]
+        countryMap.update({line['phonecode']: addressInfo(line['phonecode'], line['name_zh'])})
     return countryMap
-
 
 
 # 打开选择文件夹对话框
@@ -62,29 +62,31 @@ for file in fileSet:
     data = pd.read_excel(folderPath + "\\" + file, sheet_name=None, engine=engine)
     for key in data.keys():
         df = data[key]
+        if not df.keys().__contains__('用户ID') or len(df['用户ID']) < 1:
+            continue
         if len(phoneMap) < 1:
             for index in range(len(df)):
                 a = df.loc[index]
                 person = phoneInfo(a["用户ID"], a["区号"], a["手机号"], get_address(p, countryMap, a["区号"], a["手机号"]))
                 phoneMap.update({a["用户ID"]: person})
 
-        if not df.keys().__contains__('区号') or len(df['区号']) < 1:
+        if not df.keys().__contains__('区号') or df['区号'].isnull().any():
             areaCodeList = []
             for personId in df["用户ID"]:
                 areaCodeList.append(phoneMap.get(personId).areaCode)
-            df.insert(df.shape[1], '区号', areaCodeList)
+            df.loc[:,'区号'] = areaCodeList
 
-        if not df.keys().__contains__('手机号') or len(df['手机号']) < 1:
+        if not df.keys().__contains__('手机号') or df['手机号'].isnull().any():
             areaCodeList = []
             for personId in df["用户ID"]:
                 areaCodeList.append(phoneMap.get(personId).phoneNum)
-            df.insert(df.shape[1], '手机号', areaCodeList)
+            df.loc[:,'手机号'] = areaCodeList
 
-        if not df.keys().__contains__('用户手机号归属地') or len(df['用户手机号归属地']) < 1:
+        if not df.keys().__contains__('用户手机号归属地') or df['用户手机号归属地'].isnull().any():
             areaCodeList = []
             for personId in df["用户ID"]:
                 areaCodeList.append(phoneMap.get(personId).address)
-            df.insert(df.shape[1], '用户手机号归属地', areaCodeList)
+            df.loc[:,'用户手机号归属地'] = areaCodeList
 
     writer = pd.ExcelWriter(folderPath + "\\" + file)
     for key in data.keys():
