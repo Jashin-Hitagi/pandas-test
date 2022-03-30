@@ -6,7 +6,7 @@ import pandas as pd
 from phone import Phone
 
 '''
-没有手机号的sheet要根据ID去另一个sheet查手机号然后添加进去
+没有targetCol的sheet要根据sheetId去另一个sheet查targetCol然后添加进去
 '''
 
 
@@ -45,48 +45,78 @@ def get_countryCode():
         countryMap.update({line['phonecode']: addressInfo(line['phonecode'], line['name_zh'])})
     return countryMap
 
-
 # 打开选择文件夹对话框
 root = tk.Tk()
 root.withdraw()
 folderPath = filedialog.askdirectory()  # 获得选择好的文件夹
+print("输入需要匹配的表头：")
+sheetId = input().strip()
+print("是否添加手机号归属地(y/n): ")
+localFlag = input().strip()
+phoneHeader = None
+if localFlag == 'y':
+    print("输入区号表头和手机号表头，英文逗号分隔: ")
+    phoneHeader = input().split(',')
+print("输入除归属地以外需要插入的表头，英文逗号分隔: ")
+headerList = input().strip().split(',')
 countryMap = get_countryCode()
 phone_dat_file = os.path.join(os.path.dirname(__file__), "phone.dat")
 p = Phone(phone_dat_file)
 fileSet = os.listdir(folderPath)
-phoneMap = {}
+infoMap = {}
 for file in fileSet:
     engine = None
+    if not file.endswith('.xlsx') and not file.endswith('.xls'):
+        continue
+    if file.endswith('.xls'):
+        engine = 'xlrd'
     if file.endswith('.xlsx'):
         engine = 'openpyxl'
-    data = pd.read_excel(folderPath + "\\" + file, sheet_name=None, engine=engine)
+    conv = dict(zip(headerList, [str] * len(headerList)))
+    data = pd.read_excel(folderPath + "\\" + file, sheet_name=None, engine=engine, converters=conv)
     for key in data.keys():
         df = data[key]
-        if not df.keys().__contains__('用户ID') or len(df['用户ID']) < 1:
+        if not df.keys().__contains__(sheetId) or df[sheetId].isnull().all():
             continue
-        if len(phoneMap) < 1:
+
+        if len(infoMap) < 1:
             for index in range(len(df)):
+                infoList = []
                 a = df.loc[index]
-                person = phoneInfo(a["用户ID"], a["区号"], a["手机号"], get_address(p, countryMap, a["区号"], a["手机号"]))
-                phoneMap.update({a["用户ID"]: person})
+                if a[sheetId] is None:
+                    continue
+                for header in headerList:
+                    infoList.append((header,a[header]))
+                if localFlag == 'y' and len(phoneHeader) > 1:
+                    infoList.append(('用户手机号归属地', get_address(p, countryMap, a[phoneHeader[0]], a[phoneHeader[1]])))
+                infoMap.update({a[sheetId]: infoList})
 
-        if not df.keys().__contains__('区号') or df['区号'].isnull().any():
-            areaCodeList = []
-            for personId in df["用户ID"]:
-                areaCodeList.append(phoneMap.get(personId).areaCode)
-            df.loc[:,'区号'] = areaCodeList
+        for header in headerList:
+            if not df.keys().__contains__(header) or df[header].isnull().all():
+                colList = []
+                for personId in df[sheetId]:
+                    if personId is None:
+                        colList.append("")
+                    elif infoMap.get(personId) is not None:
+                        for info in infoMap.get(personId):
+                            if info[0] == header:
+                                colList.append(info[1])
+                    else:
+                        colList.append("")
+                df.loc[:, header] = colList
 
-        if not df.keys().__contains__('手机号') or df['手机号'].isnull().any():
-            areaCodeList = []
-            for personId in df["用户ID"]:
-                areaCodeList.append(phoneMap.get(personId).phoneNum)
-            df.loc[:,'手机号'] = areaCodeList
-
-        if not df.keys().__contains__('用户手机号归属地') or df['用户手机号归属地'].isnull().any():
-            areaCodeList = []
-            for personId in df["用户ID"]:
-                areaCodeList.append(phoneMap.get(personId).address)
-            df.loc[:,'用户手机号归属地'] = areaCodeList
+        if localFlag == 'y' and len(phoneHeader) > 1:
+            colList = []
+            for personId in df[sheetId]:
+                if personId is None:
+                    colList.append("")
+                elif infoMap.get(personId) is not None:
+                    for info in infoMap.get(personId):
+                        if info[0] == '用户手机号归属地':
+                            colList.append(info[1])
+                else:
+                    colList.append("")
+            df.loc[:, '用户手机号归属地'] = colList
 
     writer = pd.ExcelWriter(folderPath + "\\" + file)
     for key in data.keys():
